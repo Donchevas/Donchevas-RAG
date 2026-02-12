@@ -1,44 +1,48 @@
 import os
 from langchain_google_vertexai import ChatVertexAI
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from vertexai.preview import rag
 
-# Configuraciones extraídas de tu Lab
-CONF_MODEL = "gemini-2.5-flash-lite"
-CONF_LOCATION = "global"
+# EXTRAEMOS TODO DEL ENTORNO (Sincronizado con tu captura de Cloud Run)
+# IMPORTANTE: Los nombres dentro de "" deben ser idénticos a los de la consola de GCP
+CONF_MODEL = os.getenv("MODEL_NAME")              # En tu imagen pusiste MODEL_NAME
+CONF_LOCATION = os.getenv("GCP_LOCATION")          # En tu imagen pusiste GCP_LOCATION
+CONF_CORPUS = os.getenv("CONF_BASE_DE_CONOCIMIENTO") # En tu imagen pusiste este nombre
+PROJECT_ID = os.getenv("GCP_PROJECT_ID")           # En tu imagen pusiste GCP_PROJECT_ID
 
 def obtener_respuesta_rag(mensaje_usuario: str):
-    # Obtenemos el Corpus ID de las variables de entorno de GCP
-    corpus_id = os.getenv("CONF_BASE_DE_CONOCIMIENTO")
+    # Validamos que las variables críticas existan antes de proceder
+    if not CONF_CORPUS:
+        raise ValueError("Error: La variable CONF_BASE_DE_CONOCIMIENTO no está configurada en la consola de Cloud Run.")
+
+    # 1. Recuperación desde el Corpus ID (usa las 3 coincidencias de tu lab) [cite: 23, 24]
+    config_rag = rag.RagRetrievalConfig(top_k=3) 
     
-    # 1. Recuperación de contexto desde la base de conocimientos de GCP
-    config_rag = rag.RagRetrievalConfig(top_k=3)
     respuesta_rag = rag.retrieval_query(
-        rag_resources=[rag.RagResource(rag_corpus=corpus_id)],
+        rag_resources=[rag.RagResource(rag_corpus=CONF_CORPUS)],
         text=mensaje_usuario,
         rag_retrieval_config=config_rag
     )
     
-    # Acumulamos los fragmentos encontrados
-    contexto_busqueda = "\n".join([chunk.text for chunk in respuesta_rag.contexts.contexts])
+    contexto = "\n".join([c.text for c in respuesta_rag.contexts.contexts]) [cite: 24, 25]
     
-    # 2. Configuración del modelo con la "personalidad" de BigDatin
-    llm = ChatVertexAI(model=CONF_MODEL, location=CONF_LOCATION)
+    # 2. Configuración del modelo dinámico
+    llm = ChatVertexAI(
+        model=CONF_MODEL, 
+        location=CONF_LOCATION,
+        project=PROJECT_ID
+    )
     
-    # Construimos el prompt final con las reglas de tu sesión
-    prompt_final = f"""
-    Eres un asistente llamado "BigDatin" que atenderá consultas de alumnos en "Big Data Academy".
-    REGLAS:
-    1. Lenguaje formal pero amigable.
-    2. Usa emojis al responder.
-    3. Si no sabes la respuesta basándote en el contexto, dilo honestamente.
-
+    # 3. Personalidad del bot (BigDatin - lenguaje formal y amigable) [cite: 32]
+    prompt = f"""
+    Eres "BigDatin", asistente de Big Data Academy. 
+    Responde con armonía y claridad basándote en el siguiente contexto.
+    Usa emojis al responder. [cite: 32]
+    
     Contexto:
-    {contexto_busqueda}
-
-    Pregunta del alumno:
-    {mensaje_usuario}
+    {contexto}
+    
+    Pregunta: {mensaje_usuario}
     """
     
-    response = llm.invoke([HumanMessage(content=prompt_final)])
-    return response.content
+    return llm.invoke([HumanMessage(content=prompt)]).content [cite: 26]
