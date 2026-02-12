@@ -1,10 +1,26 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from src.rag_service import obtener_respuesta_rag
 
 app = FastAPI(title="Big Data Academy RAG API")
 
-# Definimos el modelo de datos de entrada
+# --- CONFIGURACIÓN DE CORS ---
+# Aquí permitimos que otros dominios se conecten a tu API
+origins = [
+    "http://localhost:3000",      # Para cuando pruebes tu frontend localmente
+    "https://projectsuite-ai-premium.vercel.app", # Tu portafolio (ajusta si la URL cambia)
+    "https://specialistati.com", # Tu dominio profesional si ya lo tienes
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,       # Dominios permitidos
+    allow_credentials=True,
+    allow_methods=["*"],         # Permite todos los métodos (GET, POST, etc.)
+    allow_headers=["*"],         # Permite todos los encabezados
+)
+
 class ChatRequest(BaseModel):
     message: str
 
