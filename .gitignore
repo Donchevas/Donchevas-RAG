@@ -1,0 +1,5 @@
+credenciales.json
+backend/credenciales.json
+node_modules/
+__pycache__/
+.env
