@@ -1,104 +1,88 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-interface Message {
-  role: 'user' | 'bot';
-  text: string;
-}
-
 const App = () => {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'bot', text: '¡Hola! Soy BigDatin, tu asistente de Big Data Academy. ¿En qué puedo ayudarte hoy? 🎓' }
-  ]);
+  const [messages, setMessages] = useState([{ role: 'bot', text: '¡Hola! Soy BigDatin 🤖. ¿En qué curso estás interesado hoy? (Big Data, Cloud o IA)' }]);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll al último mensaje
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-    const userMsg: Message = { role: 'user', text: input };
+    const userMsg = { role: 'user', text: input };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
-    const textToSend = input;
+    const currentInput = input;
     setInput('');
 
     try {
       const response = await fetch("https://donchevas-rag-1069673789450.europe-west1.run.app/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: textToSend }),
+        body: JSON.stringify({ message: currentInput }),
       });
       const data = await response.json();
       setMessages(prev => [...prev, { role: 'bot', text: data.answer }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'bot', text: 'Lo siento, hubo un error de conexión. 😰' }]);
+      setMessages(prev => [...prev, { role: 'bot', text: 'Error de conexión con el RAG 😰' }]);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ 
-      fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', 
-      height: '100vh', backgroundColor: '#f0f2f5', margin: 0 
-    }}>
-      <div style={{ 
-        width: '100%', maxWidth: '450px', height: '600px', 
-        backgroundColor: 'white', borderRadius: '15px', boxShadow: '0 12px 28px rgba(0,0,0,0.12)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden'
-      }}>
-        {/* Header Corporativo */}
-        <div style={{ backgroundColor: '#1a73e8', color: 'white', padding: '20px', textAlign: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: '1.2rem' }}>🎓 Big Data Academy</h2>
-          <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>Asistente Inteligente (RAG)</span>
+    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#0f172a', color: '#f8fafc', fontFamily: 'Inter, sans-serif' }}>
+      
+      {/* Sidebar de Arquitectura - Estilo Analizador de Reuniones */}
+      <div style={{ width: '300px', backgroundColor: '#1e293b', padding: '30px', borderRight: '1px solid #334155', display: 'none' /* Opcional: mostrar en escritorio */ }}>
+        <h3 style={{ color: '#38bdf8' }}>🏗️ Arquitectura</h3>
+        <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Cloud Run + Vertex AI RAG + Gemini 2.5 Flash Lite</p>
+        <hr style={{ borderColor: '#334155', margin: '20px 0' }} />
+        <p style={{ fontSize: '0.85rem' }}>👨‍💻 Desarrollado por: <strong>Christian Molina</strong></p>
+      </div>
+
+      {/* Área Principal de Chat */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        
+        {/* Header - Estilo Big Data Academy Chat */}
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <h1 style={{ fontSize: '2.5rem', margin: 0 }}>🎓 Big Data Academy Chat</h1>
+          <p style={{ color: '#94a3b8' }}>Pregúntame sobre nuestros cursos de IA y Cloud.</p>
         </div>
 
-        {/* Área de Mensajes */}
-        <div ref={scrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        {/* Mensajes con Scroll */}
+        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '0 20% 100px 20%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {messages.map((msg, i) => (
-            <div key={i} style={{ 
-              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              maxWidth: '80%',
-              padding: '12px 16px',
-              borderRadius: msg.role === 'user' ? '18px 18px 0 18px' : '18px 18px 18px 0',
-              backgroundColor: msg.role === 'user' ? '#1a73e8' : '#e4e6eb',
-              color: msg.role === 'user' ? 'white' : 'black',
-              fontSize: '0.95rem',
-              lineHeight: '1.4',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-            }}>
-              {msg.text}
+            <div key={i} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+              <div style={{ 
+                backgroundColor: msg.role === 'user' ? '#38bdf8' : '#334155',
+                color: msg.role === 'user' ? '#0f172a' : 'white',
+                padding: '15px 20px', borderRadius: '15px', lineHeight: '1.5'
+              }}>
+                {msg.text}
+              </div>
             </div>
           ))}
-          {loading && <div style={{ fontSize: '0.8rem', color: '#65676b' }}>BigDatin está escribiendo... ✍️</div>}
+          {loading && <div style={{ color: '#38bdf8', fontSize: '0.9rem' }}>BigDatin está procesando... 🚀</div>}
         </div>
 
-        {/* Input con estilo moderno */}
-        <div style={{ padding: '15px', borderTop: '1px solid #ddd', display: 'flex', gap: '10px' }}>
-          <input 
-            value={input} 
-            onChange={(e) => setInput(e.target.value)} 
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder="Escribe un mensaje..."
-            style={{ 
-              flex: 1, padding: '12px', borderRadius: '25px', border: '1px solid #ddd', 
-              outline: 'none', fontSize: '0.9rem' 
-            }}
-          />
-          <button onClick={sendMessage} style={{ 
-            backgroundColor: '#1a73e8', color: 'white', border: 'none', 
-            borderRadius: '50%', width: '45px', height: '45px', cursor: 'pointer',
-            fontSize: '1.2rem', display: 'flex', justifyContent: 'center', alignItems: 'center'
-          }}>
-            ➤
-          </button>
+        {/* Input Flotante - Estilo Moderno */}
+        <div style={{ position: 'absolute', bottom: '30px', left: '20%', right: '20%' }}>
+          <div style={{ backgroundColor: '#1e293b', borderRadius: '30px', padding: '10px 20px', display: 'flex', alignItems: 'center', border: '1px solid #334155' }}>
+            <input 
+              value={input} 
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              placeholder="Escribe tu consulta aquí..."
+              style={{ flex: 1, background: 'none', border: 'none', color: 'white', outline: 'none', padding: '10px' }}
+            />
+            <button onClick={sendMessage} style={{ background: '#38bdf8', border: 'none', borderRadius: '50%', width: '40px', height: '40px', cursor: 'pointer', marginLeft: '10px' }}>
+              ➤
+            </button>
+          </div>
         </div>
       </div>
     </div>
