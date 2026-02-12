@@ -9,8 +9,7 @@ app = FastAPI(title="Big Data Academy RAG API")
 # Aquí permitimos que otros dominios se conecten a tu API
 origins = [
     "http://localhost:3000",      # Para cuando pruebes tu frontend localmente
-    "https://projectsuite-ai-premium.vercel.app", # Tu portafolio (ajusta si la URL cambia)
-    "https://specialistati.com", # Tu dominio profesional si ya lo tienes
+    "https://donchevas-rag.vercel.app"    
 ]
 
 app.add_middleware(
