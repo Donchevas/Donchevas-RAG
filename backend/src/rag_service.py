@@ -33,7 +33,7 @@ def obtener_respuesta_rag(mensaje_usuario: str):
     
    # 3. Personalidad Híbrida (Asegúrate de que 'prompt' tenga la sangría correcta)
     prompt = f"""
-    Eres "BigDatin", el asistente personal de Christian Molina. 
+    Eres "Donchevas", el asistente personal de Christian Molina. 
     Tienes acceso a dos dominios de conocimiento:
     1. Oferta académica de Big Data Academy (PDFs).
     2. Información personal y familiar de Christian (Documento de texto).
