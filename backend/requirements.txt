@@ -5,3 +5,4 @@ langchain-community
 langchain-google-vertexai
 google-cloud-aiplatform
 python-dotenv
+google-cloud-firestore

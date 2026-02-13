@@ -16,4 +16,4 @@ EXPOSE 8080
 
 # Comando para iniciar el microservicio
 # Usamos el puerto 8080 que es el esperado por GCP
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
