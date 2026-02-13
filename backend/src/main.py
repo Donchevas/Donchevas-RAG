@@ -20,10 +20,10 @@ app.add_middleware(
 )
 
 # --- MODELO DE DATOS ACTUALIZADO ---
-# Ahora incluimos 'key' para que el backend no rechace la petición
+# Definimos que cada petición DEBE traer el mensaje y la llave
 class ChatRequest(BaseModel):
     message: str
-    key: str  # Campo obligatorio para la validación de seguridad
+    key: str 
 
 @app.get("/")
 def read_root():
@@ -32,11 +32,10 @@ def read_root():
 @app.post("/chat")
 def chat_endpoint(request: ChatRequest):
     try:
-        # Pasamos el mensaje Y la llave a la lógica de RAG
-        # Tu rag_service se encargará de comparar con la variable MASTER_KEY
+        # Aquí enviamos AMBOS parámetros a tu función de rag_service.py
         respuesta = obtener_respuesta_rag(request.message, request.key)
         
-        # Si la respuesta es el código de error que definimos, lanzamos excepción
+        # Si tu rag_service devuelve el error de acceso, lanzamos el código 401
         if respuesta == "ERROR_ACCESO_DENEGADO":
             raise HTTPException(status_code=401, detail="Acceso no autorizado")
             
