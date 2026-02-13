@@ -49,4 +49,4 @@ Contexto recuperado:
 
 Pregunta: {mensaje_usuario}
 """    
-    return llm.invoke([HumanMessage(content=prompt)]).content
+return llm.invoke([HumanMessage(content=prompt)]).content
