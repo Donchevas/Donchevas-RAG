@@ -1,37 +1,36 @@
 import os
+import datetime
 from langchain_google_vertexai import ChatVertexAI
 from langchain_core.messages import HumanMessage
 from vertexai.preview import rag
-# --- NUEVA IMPORTACIÓN PARA LA MEMORIA ---
 from google.cloud import firestore
-import datetime
 
-# 1. CONFIGURACIÓN DE ENTORNO
+# 1. CONFIGURACIÓN DE ENTORNO (Google Cloud)
 CONF_MODEL = os.getenv("MODEL_NAME")
 CONF_LOCATION = os.getenv("GCP_LOCATION")
 CONF_CORPUS = os.getenv("CONF_BASE_DE_CONOCIMIENTO")
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 
-# Inicializamos el cliente de Firestore
+# Inicializamos el cliente de Firestore (Conexión oficial con tu nueva DB)
 db = firestore.Client(project=PROJECT_ID)
 
 def obtener_respuesta_rag(mensaje_usuario: str, user_email: str):
     """
-    Evolución: Ahora recibe 'user_email' en lugar de 'password_enviado'.
-    La seguridad ya se validó en main.py.
+    Versión Profesional: Seguridad gestionada por Google Auth y 
+    persistencia real en Firestore por cada usuario (Tatiana, Leandro, Pablo, Christian).
     """
     
     if not CONF_CORPUS:
         raise ValueError("Error: La variable CONF_BASE_DE_CONOCIMIENTO no está configurada.")
 
     try:
-        # 2. RECUPERAR HISTORIAL REAL DESDE FIRESTORE (Aislado por usuario)
-        # Buscamos los últimos 6 mensajes de este usuario específico
+        # 2. RECUPERAR MEMORIA REAL DESDE FIRESTORE
+        # Accedemos a la colección específica del usuario logueado
         chat_ref = db.collection("conversaciones").document(user_email).collection("mensajes")
         query = chat_ref.order_by("timestamp", direction=firestore.Query.DESCENDING).limit(6)
         docs = query.stream()
         
-        # Invertimos para que el orden sea cronológico: Viejo -> Nuevo
+        # Invertimos para enviar el contexto cronológicamente a la IA
         mensajes_anteriores = []
         for doc in reversed(list(docs)):
             data = doc.to_dict()
@@ -49,14 +48,15 @@ def obtener_respuesta_rag(mensaje_usuario: str, user_email: str):
         
         contexto_documentos = "\n".join([c.text for c in respuesta_rag.contexts.contexts])
 
-        # 4. PROMPT MAESTRO (Sin cambios, es tu lógica de marca)
+        # 4. PROMPT MAESTRO (Identidad Donchevas)
         prompt_final = f"""
 Eres "Donchevas", el asistente experto de Christian Molina. Tu prioridad es la COHERENCIA y el CRITERIO.
 
 INSTRUCCIONES DE COMPORTAMIENTO:
-1. Si el usuario pregunta por temas financieros o proyectos, mantente en ese flujo.
-2. Si la pregunta es sobre la familia Molina - Valdivia, usa un tono cálido y familiar. ✨
-3. Usa el contexto de documentos para dar datos exactos.
+1. Si el usuario pregunta por algo "mayor", "menor" o "más barato" justo después de hablar de PRESUPUESTOS o PROYECTOS, mantente en el tema financiero.
+2. Usa el CONTEXTO DE DOCUMENTOS para extraer cifras exactas.
+3. Si la pregunta es sobre la familia de Christian Molina (Tatiana Valdivia, Sebastian, Leandro, Pablo y Luciana), usa un tono cálido y familiar. ✨
+4. Si no tienes la información exacta en el contexto, admítelo con profesionalismo.
 
 HISTORIAL DE LA CONVERSACIÓN (Identidad: {user_email}):
 {memoria_contexto}
@@ -77,22 +77,23 @@ Pregunta actual: {mensaje_usuario}
         resultado = llm.invoke([HumanMessage(content=prompt_final)])
         respuesta_ia = resultado.content
 
-        # 6. PERSISTENCIA: GUARDAR EN FIRESTORE
-        # Guardamos el mensaje del usuario
+        # 6. PERSISTENCIA EN FIRESTORE (Guardamos pregunta y respuesta)
+        timestamp_actual = datetime.datetime.now(datetime.timezone.utc)
+        
         chat_ref.add({
             "role": "Usuario",
             "content": mensaje_usuario,
-            "timestamp": datetime.datetime.now(datetime.timezone.utc)
+            "timestamp": timestamp_actual
         })
-        # Guardamos la respuesta de Donchevas
+        
         chat_ref.add({
             "role": "Donchevas",
             "content": respuesta_ia,
-            "timestamp": datetime.datetime.now(datetime.timezone.utc)
+            "timestamp": timestamp_actual
         })
 
         return respuesta_ia
 
     except Exception as e:
-        print(f"Error en rag_service: {str(e)}")
+        print(f"Error técnico en rag_service: {str(e)}")
         return f"Donchevas tuvo un problema técnico: {str(e)}"
