@@ -3,67 +3,73 @@ from langchain_google_vertexai import ChatVertexAI
 from langchain_core.messages import HumanMessage
 from vertexai.preview import rag
 
-# 1. CONFIGURACIÓN DE ENTORNO
+# 1. CONFIGURACIÓN DE ENTORNO (Google Cloud)
 CONF_MODEL = os.getenv("MODEL_NAME")
 CONF_LOCATION = os.getenv("GCP_LOCATION")
 CONF_CORPUS = os.getenv("CONF_BASE_DE_CONOCIMIENTO")
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 
+# 2. MEMORIA DE HILO (Contextual)
+# Mantenemos una lista de strings para evitar errores de serialización en el despliegue
 historial_texto = []
 
 def obtener_respuesta_rag(mensaje_usuario: str):
     global historial_texto
     
     if not CONF_CORPUS:
-        raise ValueError("Configuración de corpus faltante.")
+        raise ValueError("Error: La variable CONF_BASE_DE_CONOCIMIENTO no está configurada.")
 
     try:
-        # 2. RECUPERACIÓN (RAG)
+        # 3. RECUPERACIÓN (RAG)
         config_rag = rag.RagRetrievalConfig(top_k=3) 
+        
         respuesta_rag = rag.retrieval_query(
             rag_resources=[rag.RagResource(rag_corpus=CONF_CORPUS)],
             text=mensaje_usuario,
             rag_retrieval_config=config_rag
         )
+        
         contexto_documentos = "\n".join([c.text for c in respuesta_rag.contexts.contexts])
+        
+        # 4. PREPARACIÓN DE LA MEMORIA (Últimas 3 interacciones)
         memoria_contexto = "\n".join(historial_texto[-6:])
 
-        # 3. PROMPT BALANCEADO (Identidad + Inteligencia)
+        # 5. PROMPT MAESTRO CON LÓGICA DE PRIORIDAD
+        # Inyectamos instrucciones específicas para que no confunda "menor" con personas
         prompt_final = f"""
-Eres "Donchevas", el asistente experto y coach profesional de Christian Molina. 
+Eres "Donchevas", el asistente experto de Christian Molina. Tu prioridad es la COHERENCIA y el CRITERIO.
 
-OBJETIVO: Brindar respuestas inteligentes, analíticas y cálidas basadas en la información proporcionada.
+INSTRUCCIONES DE COMPORTAMIENTO:
+1. Si el usuario pregunta por algo "mayor", "menor" o "más barato" justo después de hablar de PRESUPUESTOS o PROYECTOS, mantente en el tema financiero. NO hables de la familia a menos que se mencione un nombre propio (ej. Sebastian).
+2. Usa el CONTEXTO DE DOCUMENTOS para extraer cifras exactas ($, USD, S/).
+3. Si la pregunta es sobre Luciana, Tatiana o los chicos, usa un tono cálido y familiar. ✨
+4. Si no tienes la información exacta en el contexto, admítelo con profesionalismo.
 
-GUÍAS DE RESPUESTA:
-1. Usa el CONTEXTO DE DOCUMENTOS para dar datos exactos, pero tienes libertad para ANALIZARLOS y dar conclusiones profesionales.
-2. Si se habla de presupuestos, usa el HISTORIAL para comparar cuál es el mayor o menor sin que el usuario tenga que repetirlo.
-3. Mantén un tono de alto nivel: eres un colaborador estratégico para los proyectos de Christian.
-4. Si te preguntan sobre temas generales de IA (como Turing), puedes dar una breve pincelada informativa si ayuda a explicar los cursos de Christian.
-
-HISTORIAL RECIENTE:
+HISTORIAL DE LA CONVERSACIÓN (Para entender el hilo):
 {memoria_contexto}
 
-CONTEXTO DE DOCUMENTOS:
+CONTEXTO DE DOCUMENTOS RELEVANTES:
 {contexto_documentos}
 
-Pregunta: {mensaje_usuario}
+Pregunta actual: {mensaje_usuario}
         """
 
-        # 4. CONFIGURACIÓN CON TEMPERATURA 0.7 (Vuelve la chispa)
+        # 6. INVOCACIÓN AL MODELO
         llm = ChatVertexAI(
             model=CONF_MODEL, 
             location=CONF_LOCATION,
-            project=PROJECT_ID,
-            temperature=0.7 
+            project=PROJECT_ID
         )
         
+        # Enviamos el prompt estructurado
         resultado = llm.invoke([HumanMessage(content=prompt_final)])
         respuesta_ia = resultado.content
 
+        # 7. ACTUALIZACIÓN DEL HISTORIAL
         historial_texto.append(f"Usuario: {mensaje_usuario}")
         historial_texto.append(f"Donchevas: {respuesta_ia}")
 
         return respuesta_ia
 
     except Exception as e:
-        return f"Donchevas está reiniciando sus procesos: {str(e)}"
+        return f"Donchevas tuvo un problema técnico: {str(e)}"
