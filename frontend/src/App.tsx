@@ -86,7 +86,7 @@ const App: React.FC = () => {
               alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' 
             }}>
               <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '4px', fontWeight: 'bold', letterSpacing: '1px' }}>
-                {msg.role === 'user' ? 'TÚ' : '🤖 BIGDATIN'}
+                {msg.role === 'user' ? 'TÚ' : '🤖 DONCHEVAS'}
               </span>
               
               <div style={{ 
