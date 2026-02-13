@@ -13,7 +13,7 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'bot', 
-      text: '¡Hola! 👋 Soy **BigDatin**, el asistente personal de Christian. He sido entrenado con sus documentos privados para ayudarte. ¿Qué te gustaría saber hoy? ✨' 
+      text: '¡Hola! 👋 Soy **Donchevas**, el asistente personal de Christian. He sido entrenado con sus documentos privados para ayudarte. ¿Qué te gustaría saber hoy? ✨' 
     }
   ]);
   const [loading, setLoading] = useState<boolean>(false);
