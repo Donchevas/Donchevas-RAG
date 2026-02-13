@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from src.rag_service import obtener_respuesta_rag
 
-app = FastAPI(title="Big Data Academy RAG API")
+app = FastAPI(title="Christian Molina - Personal RAG Engine")
 
 # --- CONFIGURACIÓN DE CORS ---
 # Aquí permitimos que otros dominios se conecten a tu API
