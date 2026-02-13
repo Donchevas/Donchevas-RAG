@@ -109,7 +109,7 @@ const App: React.FC = () => {
               </div>
             </div>
           ))}
-          {loading && <div style={{ color: '#38bdf8', fontSize: '0.9rem', fontStyle: 'italic', marginLeft: '10px' }}>BigDatin está consultando tus documentos... 🔍</div>}
+          {loading && <div style={{ color: '#38bdf8', fontSize: '0.9rem', fontStyle: 'italic', marginLeft: '10px' }}>Donchevas está consultando tus documentos... 🔍</div>}
         </div>
 
         {/* Input de Mensajes Estilo Moderno */}
