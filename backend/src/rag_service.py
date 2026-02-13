@@ -9,13 +9,21 @@ CONF_LOCATION = os.getenv("GCP_LOCATION")
 CONF_CORPUS = os.getenv("CONF_BASE_DE_CONOCIMIENTO")
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 
+# LLAVE MAESTRA: Se lee desde las variables de entorno de Cloud Run
+MASTER_KEY_BACKEND = os.getenv("MASTER_KEY")
+
 # 2. MEMORIA DE HILO (Contextual)
-# Mantenemos una lista de strings para evitar errores de serialización en el despliegue
 historial_texto = []
 
-def obtener_respuesta_rag(mensaje_usuario: str):
+def obtener_respuesta_rag(mensaje_usuario: str, password_enviado: str):
     global historial_texto
     
+    # --- BLOQUE DE SEGURIDAD ---
+    # Si la llave enviada desde el frontend no coincide con la de Cloud Run, bloqueamos.
+    if password_enviado != MASTER_KEY_BACKEND:
+        return "ERROR_ACCESO_DENEGADO"
+    # ---------------------------
+
     if not CONF_CORPUS:
         raise ValueError("Error: La variable CONF_BASE_DE_CONOCIMIENTO no está configurada.")
 
@@ -34,8 +42,7 @@ def obtener_respuesta_rag(mensaje_usuario: str):
         # 4. PREPARACIÓN DE LA MEMORIA (Últimas 3 interacciones)
         memoria_contexto = "\n".join(historial_texto[-6:])
 
-        # 5. PROMPT MAESTRO CON LÓGICA DE PRIORIDAD
-        # Inyectamos instrucciones específicas para que no confunda "menor" con personas
+        # 5. PROMPT MAESTRO (Mantiene tu lógica estable de Christian Molina)
         prompt_final = f"""
 Eres "Donchevas", el asistente experto de Christian Molina. Tu prioridad es la COHERENCIA y el CRITERIO.
 
@@ -45,7 +52,7 @@ INSTRUCCIONES DE COMPORTAMIENTO:
 3. Si la pregunta es sobre Luciana, Tatiana o los chicos, usa un tono cálido y familiar. ✨
 4. Si no tienes la información exacta en el contexto, admítelo con profesionalismo.
 
-HISTORIAL DE LA CONVERSACIÓN (Para entender el hilo):
+HISTORIAL DE LA CONVERSACIÓN:
 {memoria_contexto}
 
 CONTEXTO DE DOCUMENTOS RELEVANTES:
@@ -61,7 +68,6 @@ Pregunta actual: {mensaje_usuario}
             project=PROJECT_ID
         )
         
-        # Enviamos el prompt estructurado
         resultado = llm.invoke([HumanMessage(content=prompt_final)])
         respuesta_ia = resultado.content
 
