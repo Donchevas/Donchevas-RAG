@@ -9,17 +9,16 @@ CONF_LOCATION = os.getenv("GCP_LOCATION")
 CONF_CORPUS = os.getenv("CONF_BASE_DE_CONOCIMIENTO")
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 
-# 2. MEMORIA DE HILO
 historial_texto = []
 
 def obtener_respuesta_rag(mensaje_usuario: str):
     global historial_texto
     
     if not CONF_CORPUS:
-        raise ValueError("Error: Configuración de corpus faltante.")
+        raise ValueError("Configuración de corpus faltante.")
 
     try:
-        # 3. RECUPERACIÓN (RAG)
+        # 2. RECUPERACIÓN (RAG)
         config_rag = rag.RagRetrievalConfig(top_k=3) 
         respuesta_rag = rag.retrieval_query(
             rag_resources=[rag.RagResource(rag_corpus=CONF_CORPUS)],
@@ -27,44 +26,44 @@ def obtener_respuesta_rag(mensaje_usuario: str):
             rag_retrieval_config=config_rag
         )
         contexto_documentos = "\n".join([c.text for c in respuesta_rag.contexts.contexts])
-        
         memoria_contexto = "\n".join(historial_texto[-6:])
 
-        # 4. PROMPT DE RAG ESTRICTO (El "Candado")
+        # 3. PROMPT BALANCEADO (Identidad + Inteligencia)
         prompt_final = f"""
-Eres un asistente corporativo especializado para Christian Molina. 
+Eres "Donchevas", el asistente experto y coach profesional de Christian Molina. 
 
-REGLA DE HIERRO (CANDADO): 
-1. Responde ÚNICAMENTE utilizando la información proporcionada en el "CONTEXTO DE DOCUMENTOS RELEVANTES".
-2. Si la respuesta no se encuentra en el contexto, di textualmente: "Lo siento, no tengo información oficial sobre ese tema en mis registros corporativos". 
-3. Tienes PROHIBIDO utilizar tu conocimiento general o historia externa (como inventores o hechos históricos no listados).
-4. No menciones que estás usando documentos; simplemente responde con la información si existe.
+OBJETIVO: Brindar respuestas inteligentes, analíticas y cálidas basadas en la información proporcionada.
+
+GUÍAS DE RESPUESTA:
+1. Usa el CONTEXTO DE DOCUMENTOS para dar datos exactos, pero tienes libertad para ANALIZARLOS y dar conclusiones profesionales.
+2. Si se habla de presupuestos, usa el HISTORIAL para comparar cuál es el mayor o menor sin que el usuario tenga que repetirlo.
+3. Mantén un tono de alto nivel: eres un colaborador estratégico para los proyectos de Christian.
+4. Si te preguntan sobre temas generales de IA (como Turing), puedes dar una breve pincelada informativa si ayuda a explicar los cursos de Christian.
 
 HISTORIAL RECIENTE:
 {memoria_contexto}
 
-CONTEXTO DE DOCUMENTOS RELEVANTES:
+CONTEXTO DE DOCUMENTOS:
 {contexto_documentos}
 
-Pregunta del usuario: {mensaje_usuario}
+Pregunta: {mensaje_usuario}
         """
 
-        # 5. INVOCACIÓN CON TEMPERATURA 0 (Determinismo total)
+        # 4. CONFIGURACIÓN CON TEMPERATURA 0.7 (Vuelve la chispa)
         llm = ChatVertexAI(
             model=CONF_MODEL, 
             location=CONF_LOCATION,
             project=PROJECT_ID,
-            temperature=0.3  # Evita la creatividad del modelo
+            temperature=0.7 
         )
         
         resultado = llm.invoke([HumanMessage(content=prompt_final)])
         respuesta_ia = resultado.content
 
-        # 6. ACTUALIZACIÓN DEL HISTORIAL
         historial_texto.append(f"Usuario: {mensaje_usuario}")
         historial_texto.append(f"Donchevas: {respuesta_ia}")
 
         return respuesta_ia
 
     except Exception as e:
-        return f"Error en el sistema corporativo: {str(e)}"
+        return f"Donchevas está reiniciando sus procesos: {str(e)}"
