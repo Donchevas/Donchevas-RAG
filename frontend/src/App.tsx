@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-// Interfaz para el estándar de calidad
+// Definición de tipos para el estándar profesional
 interface Message {
   role: 'user' | 'bot';
   text: string;
@@ -25,31 +25,60 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Verificar sesión existente al cargar
+  // URL del Backend en Cloud Run
+  const BACKEND_URL = "https://donchevas-rag-1069673789450.europe-west1.run.app/chat";
+
+  // Verificar sesión existente al cargar la página
   useEffect(() => {
     const savedAuth = localStorage.getItem('donchevas_auth');
     if (savedAuth) {
       setIsAuthenticated(true);
-      setPasswordInput(savedAuth); // Usaremos esto para las peticiones al backend
+      setPasswordInput(savedAuth);
     }
   }, []);
 
-  // Auto-scroll
+  // Auto-scroll para una experiencia fluida
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // FUNCIÓN DE LOGIN
-  const handleLogin = (e: React.FormEvent) => {
+  // FUNCIÓN DE LOGIN CON HANDSHAKE (Validación Real)
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput.trim()) {
-      localStorage.setItem('donchevas_auth', passwordInput);
-      setIsAuthenticated(true);
-      setLoginError('');
-    } else {
+    if (!passwordInput.trim()) {
       setLoginError('Por favor, ingresa la llave de acceso.');
+      return;
+    }
+
+    setLoading(true);
+    setLoginError('');
+
+    try {
+      // "Tocamos la puerta" del backend para validar la llave antes de entrar
+      const response = await fetch(BACKEND_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          message: "validar_acceso_inicial", 
+          key: passwordInput 
+        }),
+      });
+
+      if (response.status === 401) {
+        setLoginError("Llave maestra incorrecta. Acceso denegado.");
+      } else if (response.ok) {
+        // Solo si el backend responde 200 OK, guardamos y entramos
+        localStorage.setItem('donchevas_auth', passwordInput);
+        setIsAuthenticated(true);
+      } else {
+        setLoginError("Error de respuesta del servidor.");
+      }
+    } catch (err) {
+      setLoginError("No se pudo conectar con el cerebro de Donchevas en la nube.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -63,23 +92,21 @@ const App: React.FC = () => {
     setInput('');
 
     try {
-      // Conexión con Backend enviando la llave de seguridad
-      const response = await fetch("https://donchevas-rag-1069673789450.europe-west1.run.app/chat", {
+      const response = await fetch(BACKEND_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           message: textToSend,
-          key: passwordInput // Aquí enviamos la clave para que el Backend valide
+          key: passwordInput 
         }),
       });
 
       const data = await response.json();
 
-      // Validación de acceso denegado desde el Backend
-      if (data.answer === "ERROR_ACCESO_DENEGADO") {
+      if (response.status === 401 || data.answer === "ERROR_ACCESO_DENEGADO") {
         setIsAuthenticated(false);
         localStorage.removeItem('donchevas_auth');
-        alert("Llave de acceso incorrecta o expirada.");
+        alert("Tu sesión ha expirado o la llave es inválida.");
       } else {
         setMessages((prev) => [...prev, { role: 'bot', text: data.answer }]);
       }
@@ -95,7 +122,8 @@ const App: React.FC = () => {
     return (
       <div style={{ display: 'flex', height: '100vh', backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center', fontFamily: 'Inter, sans-serif' }}>
         <div style={{ backgroundColor: '#1e293b', padding: '40px', borderRadius: '20px', border: '1px solid #334155', width: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-          <h1 style={{ fontSize: '2rem', marginBottom: '10px' }}>🤖 DONCHEVAS</h1>
+          <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🤖</div>
+          <h1 style={{ fontSize: '2rem', marginBottom: '10px', color: 'white' }}>DONCHEVAS</h1>
           <p style={{ color: '#94a3b8', marginBottom: '30px' }}>Ingresa la llave maestra familiar</p>
           <form onSubmit={handleLogin}>
             <input 
@@ -104,10 +132,15 @@ const App: React.FC = () => {
               onChange={(e) => setPasswordInput(e.target.value)}
               placeholder="Contraseña..."
               style={{ width: '100%', padding: '15px', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#0f172a', color: 'white', marginBottom: '20px', outline: 'none' }}
+              disabled={loading}
             />
-            {loginError && <p style={{ color: '#f87171', fontSize: '0.8rem', marginBottom: '15px' }}>{loginError}</p>}
-            <button type="submit" style={{ width: '100%', padding: '15px', borderRadius: '10px', backgroundColor: '#38bdf8', color: '#0f172a', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>
-              Acceder al Sistema
+            {loginError && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '15px' }}>{loginError}</p>}
+            <button 
+              type="submit" 
+              disabled={loading}
+              style={{ width: '100%', padding: '15px', borderRadius: '10px', backgroundColor: loading ? '#64748b' : '#38bdf8', color: '#0f172a', fontWeight: 'bold', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}
+            >
+              {loading ? 'Validando...' : 'Acceder al Sistema'}
             </button>
           </form>
         </div>
@@ -115,7 +148,7 @@ const App: React.FC = () => {
     );
   }
 
-  // --- RENDERIZADO DEL CHAT (Tu diseño original) ---
+  // --- RENDERIZADO DEL CHAT ---
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: '#0f172a', color: '#f8fafc', fontFamily: 'Inter, sans-serif' }}>
       
@@ -171,7 +204,7 @@ const App: React.FC = () => {
               </div>
             </div>
           ))}
-          {loading && <div style={{ color: '#38bdf8', fontSize: '0.9rem', fontStyle: 'italic', marginLeft: '10px' }}>Donchevas está consultando tus documentos... 🔍</div>}
+          {loading && <div style={{ color: '#38bdf8', fontSize: '0.9rem', fontStyle: 'italic', marginLeft: '10px' }}>Donchevas está pensando... 🔍</div>}
         </div>
 
         {/* INPUT */}
