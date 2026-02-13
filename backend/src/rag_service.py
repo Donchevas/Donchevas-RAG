@@ -1,66 +1,80 @@
 import os
 from langchain_google_vertexai import ChatVertexAI
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from vertexai.preview import rag
 
-# ... (Tus variables de entorno se mantienen igual)
+# 1. EXTRACCIÓN DE VARIABLES DE ENTORNO (Configuración GCP)
+CONF_MODEL = os.getenv("MODEL_NAME")
+CONF_LOCATION = os.getenv("GCP_LOCATION")
+CONF_CORPUS = os.getenv("CONF_BASE_DE_CONOCIMIENTO")
+PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 
-# 1. Definimos una estructura para la memoria de corto plazo (en memoria por ahora)
-# En producción, esto podría ir a un Redis o Firestore
-historial_memoria = [] 
+# 2. MEMORIA DE CORTO PLAZO (Persistente mientras el contenedor esté vivo)
+# Usamos una lista de strings para máxima compatibilidad y evitar errores de tipo
+historial_texto = []
 
 def obtener_respuesta_rag(mensaje_usuario: str):
-    global historial_memoria
+    global historial_texto
     
+    # Validación de seguridad para la base de conocimiento
     if not CONF_CORPUS:
         raise ValueError("Error: La variable CONF_BASE_DE_CONOCIMIENTO no está configurada.")
 
-    # 2. Recuperación del contexto (RAG)
-    config_rag = rag.RagRetrievalConfig(top_k=3) 
-    respuesta_rag = rag.retrieval_query(
-        rag_resources=[rag.RagResource(rag_corpus=CONF_CORPUS)],
-        text=mensaje_usuario,
-        rag_retrieval_config=config_rag
-    )
-    
-    contexto_documentos = "\n".join([c.text for c in respuesta_rag.contexts.contexts])
-    
-    # 3. Configuración del modelo
-    llm = ChatVertexAI(
-        model=CONF_MODEL, 
-        location=CONF_LOCATION,
-        project=PROJECT_ID
-    )
+    try:
+        # 3. RECUPERACIÓN (RAG) - Consulta a Vertex AI Search
+        config_rag = rag.RagRetrievalConfig(top_k=3) 
+        
+        respuesta_rag = rag.retrieval_query(
+            rag_resources=[rag.RagResource(rag_corpus=CONF_CORPUS)],
+            text=mensaje_usuario,
+            rag_retrieval_config=config_rag
+        )
+        
+        # Extraemos los fragmentos de texto encontrados
+        contexto_documentos = "\n".join([c.text for c in respuesta_rag.contexts.contexts])
+        
+        # 4. PREPARACIÓN DE LA MEMORIA (Context Window)
+        # Tomamos los últimos 6 mensajes para mantener el hilo sin saturar el modelo
+        memoria_contexto = "\n".join(historial_texto[-6:])
 
-    # 4. Construcción del Prompt con Memoria e Identidad
-    # Incluimos el historial para que sepa que "el menor" se refiere a "presupuestos"
-    mensajes = [
-        SystemMessage(content=f"""
-            Eres "Donchevas", el asistente experto de Christian Molina.
-            
-            REGLAS DE ORO:
-            1. Usa el CONTEXTO DE DOCUMENTOS para responder datos exactos (presupuestos, fechas, nombres).
-            2. Usa el HISTORIAL DE CONVERSACIÓN para no perder el hilo. Si el usuario pregunta "y el menor", entiende que se refiere al tema anterior.
-            3. Si el dato está en el contexto (como los $1.2MM), NO digas que no lo tienes. Sé consistente.
-            4. Tono: Profesional para proyectos, cálido para familia. ✨
-            
-            CONTEXTO DE DOCUMENTOS:
-            {contexto_documentos}
-        """)
-    ]
+        # 5. CONSTRUCCIÓN DEL PROMPT MAESTRO
+        # Aquí inyectamos la identidad de Donchevas y las reglas de oro
+        prompt_final = f"""
+Eres "Donchevas", el asistente inteligente y personal de Christian Molina. 
 
-    # Agregamos los últimos 4 mensajes del historial para dar coherencia
-    for msg in historial_memoria[-4:]:
-        mensajes.append(msg)
+REGLAS DE ORO:
+1. Usa el HISTORIAL RECIENTE para entender el hilo de la conversación (ej. preguntas cortas como "¿y el menor?").
+2. Usa el CONTEXTO DE DOCUMENTOS para dar datos exactos de presupuestos, cursos o familia.
+3. Si la info no está en el contexto, declina amablemente la respuesta.
+4. Tono: Profesional para temas de ingeniería y cálido/emotivo para temas de la familia Molina-Valdivia. ✨
 
-    # Agregamos la pregunta actual
-    mensajes.append(HumanMessage(content=mensaje_usuario))
+HISTORIAL RECIENTE:
+{memoria_contexto}
 
-    # 5. Ejecución
-    respuesta_ia = llm.invoke(mensajes).content
+CONTEXTO DE DOCUMENTOS RELEVANTES:
+{contexto_documentos}
 
-    # 6. Actualizamos la memoria para la próxima pregunta
-    historial_memoria.append(HumanMessage(content=mensaje_usuario))
-    historial_memoria.append(AIMessage(content=respuesta_ia))
+Pregunta actual del usuario: {mensaje_usuario}
+        """
 
-    return respuesta_ia
+        # 6. INVOCACIÓN AL MODELO (LLM)
+        llm = ChatVertexAI(
+            model=CONF_MODEL, 
+            location=CONF_LOCATION,
+            project=PROJECT_ID
+        )
+        
+        # Enviamos como un mensaje simple para asegurar que no se pierda el hilo
+        resultado = llm.invoke([HumanMessage(content=prompt_final)])
+        respuesta_ia = resultado.content
+
+        # 7. ACTUALIZACIÓN DE LA MEMORIA
+        # Guardamos la interacción para que esté disponible en la siguiente pregunta
+        historial_texto.append(f"Usuario: {mensaje_usuario}")
+        historial_texto.append(f"Donchevas: {respuesta_ia}")
+
+        return respuesta_ia
+
+    except Exception as e:
+        # En caso de error técnico, devolvemos un mensaje descriptivo para debug
+        return f"Donchevas tuvo un pequeño cruce de cables: {str(e)}"
