@@ -9,7 +9,7 @@ app = FastAPI(title="Christian Molina - Donchevas RAG Multi-User")
 # Agregamos tu dominio de Vercel y localhost
 origins = [
     "http://localhost:3000",
-    "http://rag.campeon.digital",
+    "https://rag.campeon.digital",
     "https://donchevas-rag.vercel.app",
     "https://projectsuite-ai-premium.vercel.app" # Tu nueva URL de producción
 ]
