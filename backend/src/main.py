@@ -35,6 +35,7 @@ USUARIOS_AUTORIZADOS = [
     "tatiana.valdivia.cubas@gmail.com", 
     "leandro.molina.condori@gmail.com", 
     "sebastian.molina.valdivia@gmail.com",
+    "alonsoraulmgs@gmail.com",
     "molina.condori.pablo@gmail.com"
 ]
 
